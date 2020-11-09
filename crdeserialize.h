@@ -252,7 +252,7 @@ static cr_u32 cr_read_object_property(cr_byte8* stream, cr_byte8** object_ptr, C
 			array_ptr = (*object_ptr + property->offset);
 		}
 
-		if(property_type->name == "bool") {
+		if(property_type == cr_bool_type) {
 			for(cr_u32 array_index = 0; array_index < array_size; ++array_index) {
 				cr_byte8* array_element = array_ptr + (property_type->size * array_index);
 				at += cr_read_bool(at, array_element);
@@ -260,7 +260,7 @@ static cr_u32 cr_read_object_property(cr_byte8* stream, cr_byte8** object_ptr, C
 					if(*at == ',') at++;
 				}
 			}
-		} else if(property_type->name == "int") {
+		} else if(property_type == cr_int_type) {
 			for(cr_u32 array_index = 0; array_index < array_size; ++array_index) {
 				cr_byte8* array_element = array_ptr + (property_type->size * array_index);
 				at += cr_read_int(at, array_element);
@@ -268,7 +268,7 @@ static cr_u32 cr_read_object_property(cr_byte8* stream, cr_byte8** object_ptr, C
 					if(*at == ',') at++;
 				}
 			}
-		} else if(property_type->name == "float") {
+		} else if(property_type == cr_float_type) {
 			for(cr_u32 array_index = 0; array_index < array_size; ++array_index) {
 				cr_byte8* array_element = array_ptr + (property_type->size * array_index);
 				at += cr_read_float(at, array_element);
@@ -276,7 +276,7 @@ static cr_u32 cr_read_object_property(cr_byte8* stream, cr_byte8** object_ptr, C
 					if(*at == ',') at++;
 				}
 			}
-		} else if(property_type->name == "char") {
+		} else if(property_type == cr_char_type) {
 			for(cr_u32 array_index = 0; array_index < array_size; ++array_index) {
 				cr_byte8* array_element = array_ptr + (property_type->size * array_index);
 				at += cr_read_char(at, array_element);
@@ -338,13 +338,13 @@ static cr_u32 cr_read_object_property(cr_byte8* stream, cr_byte8** object_ptr, C
 		
 		cr_byte8* value_ptr = (*object_ptr + property->offset);
 		
-		if(property_type->name == "char") {
+		if(property_type == cr_char_type) {
 			at += cr_read_char(at, value_ptr);
-		} else if(property_type->name == "int") {
+		} else if(property_type == cr_int_type) {
 			at += cr_read_int(at, value_ptr);
-		} else if(property_type->name == "float") {
+		} else if(property_type == cr_float_type) {
 			at += cr_read_float(at, value_ptr);
-		} else if(property_type->name == "bool") {
+		} else if(property_type == cr_bool_type) {
 			at += cr_read_bool(at, value_ptr);
 		} else {
 			// at += cr_read_object(at, &value_ptr, property_type);

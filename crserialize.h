@@ -1,6 +1,11 @@
 #ifndef _CR_SERAILIZE_H_
 #define _CR_SERAILIZE_H_
 
+#define WRITE_EMPTIES 0
+
+static cr_u32 cr_puts(cr_byte8** stream, cr_u32 at, cr_byte8* data, cr_u32 data_size);
+static cr_u32 cr_write(cr_byte8** stream, cr_u32 at, cr_byte8* data, cr_u32 data_size);
+
 static cr_u32 cr_write_bytes_t(cr_byte8** stream, cr_u32 at, cr_byte8* data, u32 count);
 static cr_u32 cr_write_bytes(cr_byte8** stream, cr_u32 at, cr_byte8* data);
 static cr_u32 cr_write_bool(cr_byte8** stream, cr_u32 at, cr_byte8* value);
@@ -11,7 +16,34 @@ static cr_u32 cr_write_property(cr_byte8** stream, cr_u32 at, cr_byte8* object, 
 static cr_u32 cr_write_array_property(cr_byte8** stream, cr_u32 at, cr_byte8* object, CR_Property* property, CR_Type* type);
 static cr_u32 cr_write_object(cr_byte8** stream, cr_u32 at, cr_byte8* object, CR_Type* type);
 
-// NOTE: What the fuck is _t?
+static cr_u32 cr_puts(cr_byte8** stream, cr_u32 at, cr_byte8* data, cr_u32 data_size) {
+	cr_byte8* write = *(stream) + at;
+	cr_byte8* read  = data;
+	
+	while(read - data < data_size) {
+		*write = *read;
+		write++;
+		read++;
+	}
+
+	return (cr_u32) (write - *stream); 
+}
+
+static cr_u32 cr_write(cr_byte8** stream, cr_u32 at, cr_byte8* data, cr_u32 data_size) {
+	*stream = (cr_byte8* )cr_realloc(*stream, (at + data_size));
+
+	cr_byte8* write = *(stream) + at;
+	cr_byte8* read  = data;
+	
+	while(read - data < data_size) {
+		*write = *read;
+		write++;
+		read++;
+	}
+
+	return (cr_u32) (write - *stream);	
+}
+
 static cr_u32 cr_write_bytes_t(cr_byte8** stream, cr_u32 at, cr_byte8* data, u32 count) {
 	*stream = (cr_byte8* )cr_realloc(*stream, sizeof(cr_byte8) * (at + count));
 
@@ -76,6 +108,19 @@ static cr_u32 cr_write_bool(cr_byte8** stream, cr_u32 at, cr_byte8* value) {
 	return(at);
 }
 
+inline bool cr_is_memory_zero(cr_byte8* bytes, u32 size) {
+	cr_byte8* r = bytes;
+	
+	if(r - bytes < size) {
+		if(*r) {
+			return(false);
+		}
+		r++;
+	}
+
+	return(true);
+}
+
 static cr_u32 cr_write_property(cr_byte8** stream, cr_u32 at, cr_byte8* object, CR_Property* property, CR_Type* type) {
 	assert(object);
 
@@ -99,24 +144,30 @@ static cr_u32 cr_write_property(cr_byte8** stream, cr_u32 at, cr_byte8* object, 
 	}
 	
 	if(!value) return(at);
+
+#if WRITE_EMPTIES
+	if(cr_is_memory_zero(value, property->type->size)) {
+		return(at);
+	}
+#endif
 	
 	at = cr_write_bytes(stream, at, "[");
 	
 	at = cr_write_bytes(stream, at, cr_to_c(&property->name));	
 	at = cr_write_bytes(stream, at, ":");
-	
-	if(property->type->name == "char") {
+
+	if(property->type == cr_char_type) {
 		at = cr_write_char(stream, at, value);
-	} else if(property->type->name == "int") {
+	} else if(property->type == cr_int_type) {
 		at = cr_write_int(stream, at, value);
-	} else if(property->type->name == "float") {
+	} else if(property->type == cr_float_type) {
 		at = cr_write_float(stream, at, value);
-	} else if(property->type->name == "bool") {
+	} else if(property->type == cr_bool_type) {
 		at = cr_write_bool(stream, at, value);
 	} else {
 		at = cr_write_object(stream, at, value, property->type);
 	}
-
+	
 	at = cr_write_bytes(stream, at, "]");
 	
 	return(at);
@@ -145,12 +196,12 @@ static cr_u32 cr_write_array_property(cr_byte8** stream, cr_u32 at, cr_byte8* ob
 
 	at = cr_write_bytes(stream, at, ":");
 	
-	if(property->type->name == "char") {
+	if(property->type == cr_char_type) {
 		for(cr_u32 array_index = 0; array_index < array_size; ++array_index) {
 			cr_byte8* array_element = array_value + (array_index * property->type->size);
 			at = cr_write_char(stream, at, array_element);
 		}		
-	} else if(property->type->name == "int") {
+	} else if(property->type == cr_int_type) {
 		for(cr_u32 array_index = 0; array_index < array_size; ++array_index) {
 			cr_byte8* array_element = array_value + (array_index * property->type->size);
 			
@@ -160,7 +211,7 @@ static cr_u32 cr_write_array_property(cr_byte8** stream, cr_u32 at, cr_byte8* ob
 				at = cr_write_bytes(stream, at, ",");
 			}
 		}			
-	} else if(property->type->name == "float") {
+	} else if(property->type == cr_float_type) {
 		for(cr_u32 array_index = 0; array_index < array_size; ++array_index) {
 			cr_byte8* array_element = array_value + (array_index * property->type->size);
 			
@@ -170,7 +221,7 @@ static cr_u32 cr_write_array_property(cr_byte8** stream, cr_u32 at, cr_byte8* ob
 				at = cr_write_bytes(stream, at, ",");
 			}
 		}	
-	} else if(property->type->name == "bool") {
+	} else if(property->type == cr_bool_type) {
 		for(cr_u32 array_index = 0; array_index < array_size; ++array_index) {
 			cr_byte8* array_element = array_value + (array_index * property->type->size);
 			
@@ -216,6 +267,12 @@ static cr_u32 cr_write_object(cr_byte8** stream, cr_u32 at, cr_byte8* object, CR
 		at = type->serialize_overload(stream, at, object, type);
 		return(at);
 	}
+
+#if WRITE_EMPTIES
+	if(cr_is_memory_zero(object, type->size)) {
+		return(at);
+	}
+#endif
 	
 	at = cr_write_bytes(stream, at, "[");
 	at = cr_write_bytes(stream, at, cr_to_c(&type->name));
@@ -224,7 +281,9 @@ static cr_u32 cr_write_object(cr_byte8** stream, cr_u32 at, cr_byte8* object, CR
 		for(cr_u32 property_index = 0; property_index < type->properties_count; ++property_index) {
 			CR_Property* property = &type->properties[property_index];
 			
-			if((property->attributes & CR_ATTRIBUTE_IGNORE) == CR_ATTRIBUTE_IGNORE) {
+			if((property->attributes & CR_ATTRIBUTE_IGNORE) == CR_ATTRIBUTE_IGNORE ||
+			   (property->attributes & CR_ATTRIBUTE_DONT_SAVE) == CR_ATTRIBUTE_DONT_SAVE ||
+			   (property->attributes & CR_ATTRIBUTE_DEPRECATED) == CR_ATTRIBUTE_DEPRECATED) {
 				continue;
 			}
 

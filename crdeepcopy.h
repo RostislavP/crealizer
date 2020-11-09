@@ -23,14 +23,22 @@ static void cr_deep_copy(cr_u8** object_ptr, cr_u8* copy, cr_u32 properties_offs
 
 	cr_u8* object = *object_ptr;
 
-	if(type->name == "int") {
+	if(type == cr_int_type) {
 		*((cr_s32*) object) = *((cr_s32*) copy);
-	} else if(type->name == "float") {
+	} else if(type == cr_float_type) {
 		*((cr_r32*) object) = *((cr_r32*) copy);		
-	} else if(type->name == "char") {
+	} else if(type == cr_char_type) {
 		*((cr_byte8*) object) = *((cr_byte8*) copy);
-	} else if(type->name == "bool") {
+	} else if(type == cr_bool_type) {
 		*((cr_b8*) object) = *((cr_b8*) copy);
+	} else if(type->name.value[type->name.length-1] == '*') {
+		cr_u8* ws = object;
+		cr_u8* w = ws;
+		cr_u8* r = copy;
+
+		while(w - ws < sizeof(void*)) {
+			*w = *r; w++; r++;
+		}
 	} else {
 		for(cr_s32 i = properties_offset; i < type->properties_count; ++i) {		
 			CR_Property* property = &type->properties[i];
@@ -40,7 +48,12 @@ static void cr_deep_copy(cr_u8** object_ptr, cr_u8* copy, cr_u32 properties_offs
 			
 			if((property->attributes & CR_ATTRIBUTE_COPY_NULL) == CR_ATTRIBUTE_COPY_NULL) {
 				cr_u8* a_ptr = (cr_u8*)(object + property->offset);
-				cr_zero_mem(a_ptr, property->type->size);
+				if (property->is_dynamic_array) {
+					cr_zero_mem(a_ptr, property->type->size * property->size);
+				}
+				else {
+					cr_zero_mem(a_ptr, property->type->size);
+				}
 				continue;
 			}
 			
@@ -60,9 +73,9 @@ static void cr_deep_copy(cr_u8** object_ptr, cr_u8* copy, cr_u32 properties_offs
 						cr_u32*  b_size_ptr = (cr_u32*)(copy + property->dynamic_array_length_offset);
 					
 						*a_size_ptr = *b_size_ptr;
-						array_size = *a_size_ptr;
+						 array_size = *a_size_ptr;
 
-						if(property->type->name == "char" && array_size) {
+						if(property->type == cr_char_type && array_size) {
 							// HACK: We want null terminated strings...
 							*a_field_ptr = (cr_u8*) cr_realloc(*a_field_ptr, property->type->size * (array_size+1));
 							cr_zero_mem(*a_field_ptr, property->type->size * (array_size+1));
@@ -91,8 +104,8 @@ static void cr_deep_copy(cr_u8** object_ptr, cr_u8* copy, cr_u32 properties_offs
 
 					cr_u32 array_size;
 					if(property->is_dynamic_array) {
-						a_field_ptr = (u8**) (object + property->offset);
-						b_field_ptr = (u8**) (copy   + property->offset);
+						a_field_ptr = (cr_u8**) (object + property->offset);
+						b_field_ptr = (cr_u8**) (copy   + property->offset);
 					
 						cr_u32*  a_size_ptr = (cr_u32*)(object + property->dynamic_array_length_offset);
 						cr_u32*  b_size_ptr = (cr_u32*)(copy + property->dynamic_array_length_offset);
@@ -102,7 +115,7 @@ static void cr_deep_copy(cr_u8** object_ptr, cr_u8* copy, cr_u32 properties_offs
 
 						if(array_size) {
 							// TODO: NOTE: RP(10.03.2018): String hack fro null termination!
-							if(property->type->name == "char") {
+							if(property->type == cr_char_type) {
 								*a_field_ptr = (cr_u8*) cr_realloc(*a_field_ptr, property->type->size * (array_size+1));
 								cr_zero_mem(*a_field_ptr, property->type->size * (array_size+1));
 							} else {
@@ -119,19 +132,19 @@ static void cr_deep_copy(cr_u8** object_ptr, cr_u8* copy, cr_u32 properties_offs
 						array_size = property->size;
 					}
 
-					if(property->type->name == "float") {
+					if(property->type == cr_float_type) {
 						for(cr_u32 j = 0; j < array_size; ++j) {
 							cr_r32* vp_a = (cr_r32*) ((*a_field_ptr) + (j * property->type->size));
 							cr_r32* vp_b = (cr_r32*) ((*b_field_ptr) + (j * property->type->size));
 							*vp_a = *vp_b;
 						}
-					} else if(property->type->name == "int") {
+					} else if(property->type == cr_int_type) {
 						for(cr_u32 j = 0; j < array_size; ++j) {
 							cr_s32* vp_a = (cr_s32*) ((*a_field_ptr) + (j * property->type->size));
 							cr_s32* vp_b = (cr_s32*) ((*b_field_ptr) + (j * property->type->size));
 							*vp_a = *vp_b;
 						}
-					} else if(property->type->name == "char") {
+					} else if(property->type == cr_char_type) {
 						for(cr_u32 j = 0; j < array_size; ++j) {
 							cr_u8* vp_a = (cr_u8*) ((*a_field_ptr) + (j * property->type->size));
 							cr_u8* vp_b = (cr_u8*) ((*b_field_ptr) + (j * property->type->size));
@@ -143,7 +156,7 @@ static void cr_deep_copy(cr_u8** object_ptr, cr_u8* copy, cr_u32 properties_offs
 						if(array_size) {
 							*(((*a_field_ptr) + (array_size * property->type->size))) = '\0';
 						}
-					} else if(property->type->name == "bool") {
+					} else if(property->type == cr_bool_type) {
 						for(cr_u32 j = 0; j < array_size; ++j) {
 							cr_b8* vp_a = (cr_b8*) ((*a_field_ptr) + (j * property->type->size));
 							cr_b8* vp_b = (cr_b8*) ((*b_field_ptr) + (j * property->type->size));
@@ -168,23 +181,24 @@ static void cr_deep_copy(cr_u8** object_ptr, cr_u8* copy, cr_u32 properties_offs
 					}
 				}
 			} else {
-				if(property->type->name == "float") {
+				if(property->type == cr_float_type) {
 					cr_r32* vp_a = (cr_r32*) (object + property->offset);
 					cr_r32* vp_b = (cr_r32*) (copy   + property->offset);
 					*vp_a = *vp_b;
-				} else if(property->type->name == "int") {
+				} else if(property->type == cr_int_type) {
 					cr_s32* vp_a = (cr_s32*) (object + property->offset);
 					cr_s32* vp_b = (cr_s32*) (copy   + property->offset);
 					*vp_a = *vp_b;
-				} else if(property->type->name == "bool") {
+				} else if(property->type == cr_bool_type) {
 					cr_b8* vp_a = (cr_b8*) (object + property->offset);
 					cr_b8* vp_b = (cr_b8*) (copy   + property->offset);
 					*vp_a = *vp_b;
-				} else if(property->type->name == "char") {
+				} else if(property->type == cr_char_type) {
 					cr_u8* vp_a = (cr_u8*) (object + property->offset);
 					cr_u8* vp_b = (cr_u8*) (copy   + property->offset);
 					*vp_a = *vp_b;
 				} else {
+					/*
 					if(property->type->name.value[property->type->name.length-1] == '*') {
 						cr_u8* ws = object + property->offset;
 						cr_u8* w = ws;
@@ -202,6 +216,15 @@ static void cr_deep_copy(cr_u8** object_ptr, cr_u8* copy, cr_u32 properties_offs
 					
 						cr_deep_copy(field_a_ptr, *field_b_ptr, 0, property->type);
 					}
+					*/
+
+					cr_u8* field_a = (object + property->offset);
+					cr_u8* field_b = (copy   + property->offset);
+					
+					cr_u8** field_a_ptr = &field_a;
+					cr_u8** field_b_ptr = &field_b;
+					
+					cr_deep_copy(field_a_ptr, *field_b_ptr, 0, property->type);
 				}
 			}
 		}

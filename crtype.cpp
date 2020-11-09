@@ -25,7 +25,9 @@ inline cr_u32 cr_make_hash_from_string(cr_byte8* in_string) {
    return(hash);
 }
 
-void cr_type_add_property(CR_Type* type, cr_byte8* name, cr_u16 offset, CR_Type* value_type, u64 attributes) {
+void cr_type_add_property(CR_Type* type, cr_byte8* name, cr_u16 offset, CR_Type* value_type, cr_u64 attributes) {
+	assert(type);
+	
 	type->properties_count++;
 	type->properties = (CR_Property*) cr_realloc(type->properties, sizeof(CR_Property) * type->properties_count);
 	
@@ -40,7 +42,9 @@ void cr_type_add_property(CR_Type* type, cr_byte8* name, cr_u16 offset, CR_Type*
 	new_property->attributes = attributes;
 }
 
-void cr_type_add_dynamic_array_property(CR_Type* type, cr_byte8* name, cr_u16 offset, cr_u16 length_offset, CR_Type* value_type, u64 attributes) {
+void cr_type_add_dynamic_array_property(CR_Type* type, cr_byte8* name, cr_u16 offset, cr_u16 length_offset, CR_Type* value_type, cr_u64 attributes) {
+	assert(type);
+  
 	type->properties_count++;
 	type->properties = (CR_Property*) cr_realloc(type->properties, sizeof(CR_Property) * type->properties_count);
 	
@@ -58,7 +62,7 @@ void cr_type_add_dynamic_array_property(CR_Type* type, cr_byte8* name, cr_u16 of
 	new_property->dynamic_array_length_offset = length_offset;
 }
 
-void cr_type_add_static_array_property(CR_Type* type, cr_byte8* name, cr_u16 offset, cr_u32 size, CR_Type* value_type, u64 attributes) {
+void cr_type_add_static_array_property(CR_Type* type, cr_byte8* name, cr_u16 offset, cr_u32 size, CR_Type* value_type, cr_u64 attributes) {
 	type->properties_count++;
 	type->properties = (CR_Property*) cr_realloc(type->properties, sizeof(CR_Property) * type->properties_count);
 	
@@ -96,36 +100,29 @@ CR_Property* cr_find_property(CR_Type* type, cr_byte8* name) {
 	return(0);	
 }
 
+inline CR_Type* cr_new_type(char* name, u32 size) {
+	CR_Type* type = (CR_Type*)malloc(sizeof(CR_Type));
+	type->name      = cr_make_string(name);
+	type->name_hash = cr_make_hash_from_string(name);
+	type->size      = sizeof(cr_byte8);
+	return type;
+}
+
 void cr_default_types_init() {
-	cr_char_type = {};
-	cr_char_type.name      = cr_make_string("char");
-	cr_char_type.name_hash = cr_make_hash_from_string("char");
-	cr_char_type.size      = sizeof(cr_byte8);
-
-	cr_float_type = {};
-	cr_float_type.name      = cr_make_string("float");
-	cr_float_type.name_hash = cr_make_hash_from_string("float");
-	cr_float_type.size      = sizeof(cr_r32);
-	
-	cr_int_type = {};
-	cr_int_type.name      = cr_make_string("int");
-	cr_int_type.name_hash = cr_make_hash_from_string("int");	
-	cr_int_type.size      = sizeof(cr_s32);
-
-	cr_bool_type = {};
-	cr_bool_type.name      = cr_make_string("bool");
-	cr_bool_type.name_hash = cr_make_hash_from_string("bool");
-	cr_bool_type.size      = sizeof(cr_b8);
+	cr_char_type = cr_new_type("char", sizeof(cr_byte8));
+	cr_char_type = cr_new_type("float", sizeof(cr_r32));
+	cr_char_type = cr_new_type("int", sizeof(cr_s32));
+	cr_char_type = cr_new_type("bool", sizeof(cr_b8));	
 }
 
 void cr_types_table_init() {
 	cr_types_table.count = 4;
 	cr_types_table.types = (CR_Type**) cr_realloc(cr_types_table.types, sizeof(CR_Type*) * 4);
 
-	cr_types_table.types[0] = &cr_char_type;
-	cr_types_table.types[1] = &cr_int_type;
-	cr_types_table.types[2] = &cr_float_type;
-	cr_types_table.types[3] = &cr_bool_type;
+	cr_types_table.types[0] = cr_char_type;
+	cr_types_table.types[1] = cr_int_type;
+	cr_types_table.types[2] = cr_float_type;
+	cr_types_table.types[3] = cr_bool_type;
 }
 
 CR_Type* cr_types_table_new_type(cr_byte8* name, cr_u32 size) {

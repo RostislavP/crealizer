@@ -3,6 +3,9 @@
 #ifndef _CR_COMMON_H_
 #define _CR_COMMON_H_
 
+#include <stdlib.h>
+#include <cassert>
+
 typedef unsigned char   cr_u8;
 typedef unsigned short cr_u16;
 typedef unsigned int   cr_u32;
